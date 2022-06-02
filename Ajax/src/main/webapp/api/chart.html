@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>api/chart.html</title>
+	<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script> <!-- google charts 라이브러리 -->
+    <script type="text/javascript">
+      google.charts.load('current', {'packages':['corechart']});
+      google.charts.setOnLoadCallback(drawChart); //setOnLoadCallback: 이 페이지가 끝난 후 실행
+	  
+	//drawChart()실행하는 시점에 ajax호출하고 호출한 데이터를 갖고 온 다음에 result변수에 값을 담아주고 data와 options을 활용해 차트 생성
+      function drawChart() {
+          let result = [];
+          result.push(['부서명', '부서인원']); //차트에 항목에 대한 설명이 필요하기 때문에 push
+          let xhtp = new XMLHttpRequest();
+          xhtp.open('get', '../ChartServlet'); //chart.html에서 ChartServlet찾아가려면 ../ 필요
+    	  xhtp.send();
+    	  xhtp.onload = function(){
+    		  let data1 = JSON.parse(xhtp.responseText);
+    		  for(let field in data1){ 					//object타입이라 for in
+    			  result.push([field, data1[field]]);	//배열형식으로 값을 담아줘야 함
+    		  }
+    	      var data = google.visualization.arrayToDataTable(result); //result: ajax서블릿을 통해서 생성된 값
+    	      var options = {
+    	        title: '부서별 인원현황'
+    	      };
+    	      var chart = new google.visualization.PieChart(document.getElementById('piechart'));
+    	      chart.draw(data, options);
+    	  }
+      }
+    </script>
+</head>
+<body>
+	<!-- 차트가 그려지는 곳 -->
+	<div id="piechart" style="width: 900px; height: 500px;"></div>
+</body>
+</html>

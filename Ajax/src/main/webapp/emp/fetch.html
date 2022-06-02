@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>fetch.html</title>
+</head>
+
+<body>
+  <form name="frm" action="../ajax.do" method="post">
+    fist_name : <input type="text" name="fname"><br>
+    last_name : <input type="text" name="lname"><br>
+    email : <input type="email" name="email"><br>
+    hire_date : <input type="date" name="hdate"><br>
+    job_id : <input type="text" name="job" value="IT_PROG"><br>
+    <input type="hidden" name="cmd" value="insert">
+    <input type="hidden" name="empId">
+    <input type="submit" value="저장">
+    <input type="reset" value="취소">
+    <input type="button" value="수정" id="modify">
+    <input type="button" value="삭제" id="delete">
+  </form>
+
+  <h3>사원리스트</h3>
+  <div id="show">
+    <table border="1">
+      <thead>
+        <tr><th>사원번호</th><th>이름</th><th>성씨</th><th>이메일</th><th>입사일자</th><th>직무</th>
+      </thead>
+      <tbody id="list">
+      </tbody>
+    </table>
+  </div>
+  
+  <script>
+    // 리스트 출력. (GET요청)
+    //resolve - 기능을 정상적으로 수행해서 마지막에 데이터를 전달한다. .then() 으로 결과를 받는다.
+    //reject - 중간에 문제가 생기면 호출된다. .catch()로 결과를 받는다.
+	let promise = new Promise(function(resolve, reject){
+		setTimeout(e => {
+			reject('error'); //매개값으로 success를 넣음
+		}, 2000);
+	});
+    
+    //promise: fullfilled(정상적으로 값을 받아올 때) / pending(처리 중) / rejected(실패)
+    //promise.then().catch() => 정상적으로 실행되면 then()메서드에 정의된 콜백함수 실행 / 실패하면 catch라는 메서드에 정의된 콜백함수 실행
+    promise.then(function(result){ //success가 넘어왔을 때 success출력
+    	console.log(result);
+    }).catch(function(error){
+    	console.error(error);
+    });
+    
+    fetch('../AjaxServlet?job=json') 	//fetch가 리턴해주는 것이 promise객체 / URL생략시 GET방식
+    	.then( (result) => result.json() //stream() => json	
+    	).then( json => showList(json))
+    	.catch(function(err){
+    		console.log(err);
+    	});
+	
+    function showList(json){
+    	let list = document.getElementById('list');
+    	for(let i=0; i<json.length; i++) {
+    		list.append(makeTr(json[i])); // data[i]=> employeeId,firstName..
+    	}
+    }
+
+    //삭제
+    document.getElementById('delete').addEventListener('click', delFnc);
+    function delFnc() {
+      myform.cmd.value = 'delete';
+      fetchFunc(modifyCallBack);
+    }
+
+    //modify:변경
+    document.getElementById('modify').addEventListener('click', modifyFnc);
+    function modifyFnc() {
+      myform.cmd.value = 'update';
+      fetchFunc(modifyCallBack);
+    }
+    
+    //기존값을 수정값으로 변경해주는 callback
+    function modifyCallBack(data) {
+        let oldTr = document.getElementById('key_' + data.employeeId);
+        let newTr = makeTr(data);
+        oldTr.parentNode.replaceChild(newTr, oldTr);
+     }
+    
+    //submit:저장
+    let myform = document.forms.frm;
+    myform.addEventListener('submit', submitFnc);
+    function submitFnc(e) {
+        e.preventDefault();
+        fetchFunc(submitCallBack);
+    }
+    
+    //신규값을 리스트에 추가해주는 callback
+    function submitCallBack(data) {
+      document.getElementById('list').append(makeTr(data))
+    }    
+    
+    //fetch함수
+    function fetchFunc(callBack) {
+        let formData = new FormData(myform);	//생성자의 매개값으로 form 값을 넣어준다
+        let params = []; 						//[[],[],[]] 배열의 각각 요소들을 key와 value형식으로 만들어서 배열에 넣음
+        for (let data of formData.entries()) { 	//entries(): 배열타입으로 key와 value값을 갖고 온다
+          params.push(`${data[0]}=${data[1]}`);	//[[key=value],[]...]
+        }
+        let param = params.join('&'); // k=v&k1=v1&k2=v2..
+
+        fetch('../AjaxServlet', {
+            method: 'post',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: param
+          })
+          .then(resut => resut.json())
+          .then(result => callBack(result))
+          .catch(err => console.log(err));
+      }
+    
+    // 데이터 한건 입력.
+    let fields = ['employeeId','firstName','lastName','email','hireDate','jobId'];
+    function makeTr(emp) {
+    	let tr = document.createElement('tr');
+    	tr.setAttribute('id', 'key_' + emp.employeeId);
+    	tr.addEventListener('click', trClick); // trClick=> callback함수
+    	fields.forEach(field => {
+        	let td = document.createElement('td');
+        	td.innerText = emp[field]; //오브젝트가 갖고 있는 필드값을 넣어줌
+    		tr.append(td);	
+    	});
+    	return tr;
+    }
+    
+
+    function trClick() {
+    	// tr클릭(내가 누르는 tr) -> this:tr (값을 갖고 온 것을 value로 넣기 / 입사일자 앞 10자리만 넣기)
+		let date = this.children[4].innerText.substring(0, 10);
+		myform.empId.value = this.children[0].innerText;
+		myform.fname.value = this.children[1].innerText;
+		myform.lname.value = this.children[2].innerText;
+		myform.email.value = this.children[3].innerText;
+		myform.hdate.value = date;
+		myform.job.value = this.children[5].innerText;
+    }
+  </script>
+</body>
+
+</html>
